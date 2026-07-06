@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- INTERNET is granted by the host app. The app-scheme redirect
+         intent-filter lives on the host app's MainActivity, not here, because
+         the redirect scheme is per-app (e.g. au.ecodia.studio). -->
+</manifest>

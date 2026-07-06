@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml:2:1-6:12
+INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml:2:1-6:12
+	package
+		INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml:2:11-69
+uses-sdk
+INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml
+INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/ecodia/.code/friend-auth-capacitor/android/src/main/AndroidManifest.xml
