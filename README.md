@@ -51,7 +51,7 @@ if (error) showError(error.message);
 The redirect scheme is per-app, so the intent-filter / URL type lives on the host
 app, not this package.
 
-**iOS** — add to `Info.plist`:
+**iOS** - add to `Info.plist`:
 
 ```xml
 <key>CFBundleURLTypes</key>
@@ -63,7 +63,7 @@ app, not this package.
 </array>
 ```
 
-**Android** — on the host app's `MainActivity` in `AndroidManifest.xml`, set
+**Android** - on the host app's `MainActivity` in `AndroidManifest.xml`, set
 `android:launchMode="singleTask"` and add:
 
 ```xml
@@ -75,13 +75,13 @@ app, not this package.
 </intent-filter>
 ```
 
-**Supabase** — add `au.ecodia.roam://auth/callback` to the project's auth redirect
+**Supabase** - add `au.ecodia.roam://auth/callback` to the project's auth redirect
 allow-list (`uri_allow_list`), and ensure the `custom:friend` provider is enabled
 with the friend_id copy-forward trigger pair (`patterns/supabase-custom-oidc-app-metadata-clobber-needs-before-trigger-2026-07-06`).
 
 ## Exports
 
-- `connectFriend(opts)` — the cross-platform helper above.
-- `FriendAuth` — the raw Capacitor plugin (`signIn(options)`), if you need the
+- `connectFriend(opts)` - the cross-platform helper above.
+- `FriendAuth` - the raw Capacitor plugin (`signIn(options)`), if you need the
   tokens without the reconcile/session plumbing.
 - Types: `ConnectFriendOptions`, `FriendSignInOptions`, `FriendSession`.
