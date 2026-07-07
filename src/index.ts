@@ -7,4 +7,5 @@ const FriendAuth = registerPlugin<FriendAuthPlugin>('FriendAuth', {
 });
 
 export * from './definitions';
+export * from './connect';
 export { FriendAuth };

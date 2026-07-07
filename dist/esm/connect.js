@@ -1,31 +1,16 @@
-'use strict';
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-var core = require('@capacitor/core');
-
-const FriendAuth = core.registerPlugin('FriendAuth', {
-    web: () => Promise.resolve().then(function () { return web; }).then((m) => new m.FriendAuthWeb()),
-});
-
-class FriendAuthWeb extends core.WebPlugin {
-    async signIn() {
-        throw this.unavailable('Native Friend sign-in runs only on iOS and Android. On the web, use the browser OAuth redirect (signInWithOAuth).');
-    }
-}
-
-var web = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    FriendAuthWeb: FriendAuthWeb
-});
-
+import { Capacitor } from '@capacitor/core';
+import { FriendAuth } from './index';
 /**
- * The one cross-platform Friend sign-in. Native runs the plugin PKCE flow +
- * setSession + fire-once friend_reconcile; web starts the signInWithOAuth redirect.
+ * The one cross-platform Friend sign-in. On native (Capacitor iOS/Android) it runs
+ * the self-managed PKCE flow through the FriendAuth plugin (system SSO surface),
+ * sets the returned GoTrue session on the web client so the WKWebView/WebView cookie
+ * lands, then runs a fire-once friend_reconcile relink. On the web it starts the
+ * ordinary signInWithOAuth redirect. Either way the caller gets a uniform
+ * { error } and never has to branch on platform itself.
  */
-async function connectFriend(opts) {
+export async function connectFriend(opts) {
     const provider = opts.provider ?? 'custom:friend';
-    if (core.Capacitor.isNativePlatform()) {
+    if (Capacitor.isNativePlatform()) {
         try {
             const reconcile = opts.reconcile !== false;
             for (let attempt = 0; attempt < 2; attempt++) {
@@ -68,7 +53,3 @@ async function connectFriend(opts) {
     });
     return { error: error ? { message: error.message } : null };
 }
-
-exports.FriendAuth = FriendAuth;
-exports.FriendAuthWeb = FriendAuthWeb;
-exports.connectFriend = connectFriend;

@@ -1,7 +1,7 @@
 {
   "name": "@ecodia/friend-auth",
-  "version": "1.0.0",
-  "description": "Native Friend SSO (self-managed PKCE + system browser) Capacitor plugin for Ecodia apps.",
+  "version": "1.1.0",
+  "description": "Cross-platform Friend SSO for Ecodia apps: one connectFriend() over web (signInWithOAuth redirect) + native iOS/Android (self-managed PKCE via the FriendAuth Capacitor plugin).",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
