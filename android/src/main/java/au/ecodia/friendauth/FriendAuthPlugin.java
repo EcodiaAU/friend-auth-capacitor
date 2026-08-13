@@ -24,6 +24,12 @@ public class FriendAuthPlugin extends Plugin {
 
     private final FriendAuthCore core = new FriendAuthCore();
     private PluginCall savedCall;
+    // Closing the Custom Tab without completing (Back / swipe away) fires NO redirect, so the
+    // core never calls back and the promise would hang forever. We watch the Activity resume:
+    // if we come back to the app with a sign-in still pending and no redirect was seen, the
+    // person cancelled - reject with a stable code the JS side swallows silently.
+    private boolean awaitingRedirect = false;
+    private boolean redirectSeen = false;
 
     @PluginMethod
     public void signIn(PluginCall call) {
@@ -37,6 +43,8 @@ public class FriendAuthPlugin extends Plugin {
         String provider = call.getString("provider", "custom:friend");
 
         this.savedCall = call;
+        this.awaitingRedirect = true;
+        this.redirectSeen = false;
         call.setKeepAlive(true);
         bridge.saveCall(call);
 
@@ -64,10 +72,29 @@ public class FriendAuthPlugin extends Plugin {
     @Override
     protected void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
+        if (intent.getData() != null) redirectSeen = true;
         core.handleRedirect(intent.getData());
     }
 
+    @Override
+    protected void handleOnResume() {
+        super.handleOnResume();
+        if (!awaitingRedirect || savedCall == null) return;
+        // A redirect (onNewIntent) can land just after onResume, so give it a beat before
+        // deciding this was a cancel. If a redirect was seen, the core is already completing
+        // the sign-in (token exchange may still be running) - leave it alone.
+        final PluginCall call = savedCall;
+        bridge.getActivity().getWindow().getDecorView().postDelayed(() -> {
+            if (awaitingRedirect && !redirectSeen && savedCall == call) {
+                awaitingRedirect = false;
+                call.reject("Sign-in cancelled.", "SIGN_IN_CANCELLED");
+                release();
+            }
+        }, 700);
+    }
+
     private void release() {
+        awaitingRedirect = false;
         if (savedCall != null) {
             bridge.releaseCall(savedCall);
             savedCall = null;

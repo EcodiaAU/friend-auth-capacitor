@@ -47,6 +47,14 @@ public class FriendAuthPlugin: CAPPlugin, CAPBridgedPlugin {
                     "accessToken": tokens.accessToken,
                     "refreshToken": tokens.refreshToken
                 ])
+            } catch let fae as FriendAuthError {
+                // Forward a stable code (e.g. SIGN_IN_CANCELLED for a user-tapped Cancel) when the
+                // core set one, so the JS side swallows a cancel by code rather than matching prose.
+                if let code = fae.code {
+                    call.reject(fae.message, code)
+                } else {
+                    call.reject(fae.message)
+                }
             } catch {
                 call.reject(error.localizedDescription)
             }

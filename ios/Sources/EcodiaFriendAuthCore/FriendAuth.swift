@@ -172,7 +172,15 @@ public enum FriendAuth {
                 url: url, callbackURLScheme: callbackScheme
             ) { callbackURL, error in
                 if let error {
-                    continuation.resume(throwing: error)
+                    // Tapping Cancel on the system sign-in sheet (or closing it) is not a failure:
+                    // surface it as a distinguishable cancel so the caller can silently no-op
+                    // instead of showing a raw "WebAuthenticationSession error 1" box.
+                    if let asError = error as? ASWebAuthenticationSessionError,
+                       asError.code == .canceledLogin {
+                        continuation.resume(throwing: FriendAuthError("Sign-in cancelled.", code: "SIGN_IN_CANCELLED"))
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
                 } else if let callbackURL {
                     continuation.resume(returning: callbackURL)
                 } else {
@@ -189,10 +197,17 @@ public enum FriendAuth {
 
 /// Carries a human-readable message; conforms to LocalizedError so a delegating
 /// caller can surface it via `error.localizedDescription` without knowing the type.
-struct FriendAuthError: LocalizedError {
-    let message: String
-    init(_ message: String) { self.message = message }
-    var errorDescription: String? { message }
+public struct FriendAuthError: LocalizedError {
+    public let message: String
+    /// Optional stable machine code (e.g. "SIGN_IN_CANCELLED") a Capacitor caller can
+    /// forward via call.reject(message, code) so JS matches on the code, not the prose.
+    /// Public so the Capacitor plugin (a separate SPM module) can read it on catch.
+    public let code: String?
+    public init(_ message: String, code: String? = nil) {
+        self.message = message
+        self.code = code
+    }
+    public var errorDescription: String? { message }
 }
 
 private extension Data {
