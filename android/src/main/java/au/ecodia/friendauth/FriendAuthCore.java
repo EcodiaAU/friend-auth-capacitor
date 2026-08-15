@@ -128,9 +128,66 @@ public final class FriendAuthCore {
         callback = null;
     }
 
+    // ---- in-app WebView flow (host intercepts the redirect in a WebView) -----
+    // The Custom Tab flow above cannot reliably return to the app when the OAuth
+    // redirect crosses domains (federated Friend SSO): Chrome blocks the
+    // redirect-driven app-scheme intent and falls back to full browser, which
+    // cannot resolve a custom scheme (DNS_PROBE_FINISHED_NXDOMAIN). The host app
+    // can instead run the exact same authorize URL inside its own WebView, where
+    // shouldOverrideUrlLoading fires for EVERY navigation, so the app-scheme
+    // redirect is always caught. This block exposes the pieces (build URL + PKCE,
+    // then exchange) so the Capacitor plugin can drive that WebView; the instance
+    // signIn/handleRedirect Custom Tab path above is untouched for apps that use it.
+
+    /** Authorize URL + the PKCE verifier that must be held for the later exchange. */
+    public static final class Prepared {
+        public final String authorizeUrl;
+        public final String verifier;
+        Prepared(String authorizeUrl, String verifier) {
+            this.authorizeUrl = authorizeUrl;
+            this.verifier = verifier;
+        }
+    }
+
+    /**
+     * Build the authorize URL (provider + PKCE challenge) for the WebView flow.
+     * @param redirectTo the FULL redirect the app registers (e.g. au.ecodia.studio://auth/callback).
+     */
+    public static Prepared prepare(String authorizeBaseUrl, String provider, String redirectTo) {
+        String prov = (provider == null || provider.isEmpty()) ? "custom:friend" : provider;
+        String verifier = makeCodeVerifier();
+        String challenge = codeChallenge(verifier);
+        String authorize = Uri.parse(trimTrailingSlash(authorizeBaseUrl) + "/auth/v1/authorize").buildUpon()
+                .appendQueryParameter("provider", prov)
+                .appendQueryParameter("redirect_to", redirectTo)
+                .appendQueryParameter("code_challenge", challenge)
+                .appendQueryParameter("code_challenge_method", "s256")
+                .build().toString();
+        return new Prepared(authorize, verifier);
+    }
+
+    /** Exchange the auth code for tokens (static entry for the WebView flow). Returns {access, refresh}. */
+    public static String[] exchange(String tokenBaseUrl, String anonKey, String code, String verifier) throws Exception {
+        return exchangeStatic(trimTrailingSlash(tokenBaseUrl), anonKey, code, verifier);
+    }
+
+    /** Read an error carried on the callback redirect ({@code ?error_description}/{@code ?error}); null if none. */
+    public static String errorFrom(Uri data) { return callbackError(data); }
+
+    /** Read the auth {@code code} from the callback redirect; null if absent. */
+    public static String codeFrom(Uri data) {
+        if (data == null) return null;
+        String code = data.getQueryParameter("code");
+        return (code == null || code.isEmpty()) ? null : code;
+    }
+
     // ---- token exchange -----------------------------------------------------
 
     private String[] exchangeCode(String code, String verifier) throws Exception {
+        return exchangeStatic(tokenBase, anonKey, code, verifier);
+    }
+
+    private static String[] exchangeStatic(String tokenBase, String anonKey, String code, String verifier) throws Exception {
         URL url = new URL(tokenBase + "/auth/v1/token?grant_type=pkce");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");

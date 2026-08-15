@@ -1,11 +1,16 @@
 package au.ecodia.friendauth;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
+
+import androidx.activity.result.ActivityResult;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
@@ -41,6 +46,16 @@ public class FriendAuthPlugin extends Plugin {
             return;
         }
         String provider = call.getString("provider", "custom:friend");
+
+        // In-app WebView flow (opt-in via plugins.FriendAuth.androidUseInAppBrowser
+        // in capacitor.config). Needed for federated Friend SSO, where the
+        // cross-domain OAuth redirect back to the app scheme is dropped by Chrome
+        // Custom Tabs. A WebView catches every navigation, so the redirect always
+        // returns. Apps that do not set the flag keep the Custom Tab path below.
+        if (getConfig().getBoolean("androidUseInAppBrowser", false)) {
+            signInViaWebView(call, url, key, sc, provider);
+            return;
+        }
 
         this.savedCall = call;
         this.awaitingRedirect = true;
@@ -99,5 +114,67 @@ public class FriendAuthPlugin extends Plugin {
             bridge.releaseCall(savedCall);
             savedCall = null;
         }
+    }
+
+    // ---- in-app WebView flow (androidUseInAppBrowser) -----------------------
+    // The PKCE verifier is held between launching the WebView activity and the
+    // result callback; the exchange runs off the main thread on success.
+    private String webViewTokenBase;
+    private String webViewAnonKey;
+    private String webViewVerifier;
+
+    private void signInViaWebView(PluginCall call, String supabaseUrl, String anonKey, String sc, String provider) {
+        String redirectTo = sc + "://auth/callback";
+        FriendAuthCore.Prepared prepared = FriendAuthCore.prepare(supabaseUrl, provider, redirectTo);
+        // The single supabaseUrl is used as both authorize and token base, matching
+        // the Custom Tab path above.
+        this.webViewTokenBase = supabaseUrl;
+        this.webViewAnonKey = anonKey;
+        this.webViewVerifier = prepared.verifier;
+
+        Intent intent = new Intent(getContext(), FriendAuthWebViewActivity.class);
+        intent.putExtra(FriendAuthWebViewActivity.EXTRA_AUTHORIZE_URL, prepared.authorizeUrl);
+        intent.putExtra(FriendAuthWebViewActivity.EXTRA_REDIRECT_SCHEME, sc);
+        startActivityForResult(call, intent, "handleWebViewResult");
+    }
+
+    @ActivityCallback
+    private void handleWebViewResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        if (result == null || result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+            call.reject("Sign-in cancelled.", "SIGN_IN_CANCELLED");
+            return;
+        }
+        String callbackUrl = result.getData().getStringExtra(FriendAuthWebViewActivity.EXTRA_CALLBACK_URL);
+        if (callbackUrl == null) {
+            call.reject("Sign-in cancelled.", "SIGN_IN_CANCELLED");
+            return;
+        }
+        Uri uri = Uri.parse(callbackUrl);
+        String err = FriendAuthCore.errorFrom(uri);
+        if (err != null) {
+            call.reject(err);
+            return;
+        }
+        String code = FriendAuthCore.codeFrom(uri);
+        if (code == null) {
+            call.reject("Sign-in did not return an authorization code.");
+            return;
+        }
+        final String tokenBase = webViewTokenBase;
+        final String anonKey = webViewAnonKey;
+        final String verifier = webViewVerifier;
+        new Thread(() -> {
+            try {
+                String[] tokens = FriendAuthCore.exchange(tokenBase, anonKey, code, verifier);
+                JSObject ret = new JSObject();
+                ret.put("accessToken", tokens[0]);
+                ret.put("refreshToken", tokens[1]);
+                call.resolve(ret);
+            } catch (Throwable t) {
+                String msg = t.getMessage();
+                call.reject(msg != null ? msg : "Sign-in could not complete.");
+            }
+        }).start();
     }
 }

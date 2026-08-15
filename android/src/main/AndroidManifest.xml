@@ -3,4 +3,15 @@
     <!-- INTERNET is granted by the host app. The app-scheme redirect
          intent-filter lives on the host app's MainActivity, not here, because
          the redirect scheme is per-app (e.g. au.ecodia.studio). -->
+    <application>
+        <!-- In-app WebView OAuth surface (opt-in via
+             plugins.FriendAuth.androidUseInAppBrowser). Catches the federated
+             Friend SSO redirect that Chrome Custom Tabs drop. Not exported: it is
+             launched only by this plugin, with a caller-provided authorize URL. -->
+        <activity
+            android:name="au.ecodia.friendauth.FriendAuthWebViewActivity"
+            android:exported="false"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|screenLayout|uiMode|density"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+    </application>
 </manifest>
