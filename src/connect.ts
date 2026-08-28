@@ -39,7 +39,7 @@ export interface ConnectFriendOptions {
   redirectScheme: string;
   /**
    * The full https callback URL used on the web redirect path, e.g.
-   * "https://glovebox.ecodia.au/auth/callback?next=/". On native this is ignored
+   * "https://studio.ecodia.au/auth/callback?next=/". On native this is ignored
    * (the system browser returns via redirectScheme instead).
    */
   webRedirectTo: string;
